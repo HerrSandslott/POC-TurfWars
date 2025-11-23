@@ -1,0 +1,2361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>POC: Turf Wars</title>
+  <style>
+    :root {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #222 0, #000 55%);
+      color: #f5f5f5;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .wrapper {
+      background: rgba(15, 15, 20, 0.95);
+      border-radius: 16px;
+      padding: 16px 20px 20px;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.7);
+      max-width: 1100px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 24px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .subtitle {
+      font-size: 12px;
+      opacity: 0.7;
+      margin-bottom: 12px;
+    }
+
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+      font-size: 14px;
+    }
+
+    .top-left {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    #turnInfo {
+      font-weight: 600;
+    }
+
+    #thugInfo {
+      opacity: 0.8;
+      font-size: 13px;
+    }
+
+    .top-right {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .pill-btn {
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      padding: 6px 14px;
+      background: linear-gradient(135deg, #333, #111);
+      color: #f5f5f5;
+      cursor: pointer;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      white-space: nowrap;
+    }
+
+    .pill-btn:hover {
+      background: linear-gradient(135deg, #555, #222);
+    }
+
+    .pill-btn:disabled {
+      opacity: 0.4;
+      cursor: default;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: auto minmax(200px, 260px);
+      gap: 18px;
+      align-items: flex-start;
+    }
+
+    .board-wrapper {
+      position: relative;
+      display: inline-block;
+    }
+
+    /* Board: grid size is set dynamically via JS */
+    .board {
+      display: grid;
+      grid-template-columns: repeat(7, 40px); /* default; overridden by JS */
+      grid-template-rows: repeat(7, 40px);    /* default; overridden by JS */
+      gap: 4px;
+      background: #111;
+      border-radius: 12px;
+      position: relative;
+      z-index: 2;
+      padding: 8px;
+    }
+
+    .cell {
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      background: #222;
+      box-sizing: border-box;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      cursor: default;
+      position: relative;
+      transition:
+        transform 0.1s ease,
+        box-shadow 0.1s ease,
+        background 0.1s ease,
+        border-color 0.1s ease;
+      z-index: 5;
+    }
+
+    .cell.center {
+      border-style: dashed;
+      border-color: rgba(255, 255, 255, 0.35);
+    }
+
+    /* Asphalt street tiles */
+
+    .street-cell {
+      background:
+        radial-gradient(circle at 20% 20%, #3c3c3c 0, #262626 45%, #151515 90%);
+      border: 1px solid #050505;
+      box-shadow:
+        inset 0 0 6px rgba(0, 0, 0, 0.95),
+        0 0 3px rgba(0, 0, 0, 0.8);
+    }
+
+    .street-cell::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      font-weight: 700;
+      font-size: 14px;
+      color: #ffdf35;
+      text-shadow:
+        0 0 4px rgba(0, 0, 0, 0.9),
+        0 0 8px rgba(0, 0, 0, 0.9);
+      pointer-events: none;
+      opacity: 0.9;
+    }
+
+    .road-h::after {
+      content: "══";
+      letter-spacing: 1px;
+    }
+
+    .road-v::after {
+      content: "║";
+      font-size: 18px;
+    }
+
+    .road-x::after {
+      content: "✚";
+      font-size: 16px;
+    }
+
+    /* Hybrid tokens: color + icon */
+
+    .token {
+      width: 22px;
+      height: 22px;
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.6);
+      box-shadow: 0 0 4px rgba(0, 0, 0, 0.7);
+    }
+
+    .player-token {
+      border-width: 2px;
+      border-color: #ffffff;
+      box-shadow:
+        0 0 6px rgba(255, 255, 255, 0.7),
+        0 0 10px rgba(0, 0, 0, 0.8);
+    }
+
+    .ai-token {
+      border-color: rgba(255, 255, 255, 0.4);
+    }
+
+    /* Valid move highlight */
+    .valid-move {
+      cursor: pointer;
+      animation: glow 1s ease-in-out infinite alternate;
+    }
+
+    .valid-move:hover {
+      transform: translateY(-1px) scale(1.04);
+    }
+
+    @keyframes glow {
+      from {
+        box-shadow: 0 0 0 rgba(0, 255, 180, 0.0);
+        border-color: rgba(0, 255, 180, 0.0);
+      }
+      to {
+        box-shadow: 0 0 10px rgba(0, 255, 180, 0.7);
+        border-color: rgba(0, 255, 180, 0.9);
+      }
+    }
+
+    .sidebar {
+      font-size: 12px;
+      background: rgba(0, 0, 0, 0.4);
+      border-radius: 12px;
+      padding: 10px 12px;
+      position: relative; /* for legend overlay anchor */
+    }
+
+    .sidebar h2 {
+      margin: 0 0 6px;
+      font-size: 14px;
+    }
+
+	.legend-trigger-row {
+      display: flex;
+      justify-content: space-between;
+	  justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+
+    .legend-trigger-label {
+      font-size: 11px;
+      opacity: 0.7;
+    }
+
+    .legend-overlay-toggle {
+      font-size: 11px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      padding: 4px 10px;
+      background: linear-gradient(135deg, #333, #111);
+      color: #f5f5f5;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .legend-overlay-toggle:hover {
+      background: linear-gradient(135deg, #555, #222);
+    }
+
+    .legend-overlay {
+      position: absolute;
+      top: 34px;
+      right: 8px;
+      width: 220px;
+      max-height: 360px;
+      overflow-y: auto;
+      background: rgba(5, 5, 10, 0.98);
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.9);
+      padding: 8px 10px;
+      z-index: 30;
+      display: none;
+    }
+
+    .legend-overlay.open {
+      display: block;
+    }
+
+    .legend-overlay h3 {
+      margin: 0 0 6px;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      opacity: 0.8;
+    }
+
+    .legend-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 4px;
+    }
+
+    .legend-swatch {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      flex-shrink: 0;
+    }
+
+    .legend-label {
+      font-size: 11px;
+      white-space: nowrap;
+    }
+
+    .hint {
+      margin-top: 8px;
+      font-size: 11px;
+      opacity: 0.7;
+    }
+
+	.sidebar .scores-wrapper {
+	  position: relative;
+	  margin-top: 12px;
+	  padding-top: 8px;
+	  border-top: 1px solid rgba(255, 255, 255, 0.1);
+	}
+
+	.sidebar #scores {
+	  font-size: 11px;
+	  line-height: 1.4;
+	  margin-top: 4px;
+	}
+
+    .toggle-line {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      cursor: pointer;
+      user-select: none;
+      margin-bottom: 4px;
+    }
+
+    .toggle-line span {
+      font-size: 13px;
+    }
+
+    #scores {
+      margin-top: 4px;
+      font-size: 11px;
+      line-height: 1.4;
+    }
+
+    #scores.collapsed {
+      display: none;
+    }
+
+.game-over-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.85);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 200;
+}
+
+.game-over-modal.open {
+  display: flex;
+}
+
+.game-over-content {
+  background: radial-gradient(circle at top, #333, #111 60%);
+  padding: 22px 28px;
+  border-radius: 14px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.9);
+  text-align: center;
+  width: min(380px, 90vw);
+  border: 1px solid rgba(255,255,255,0.15);
+}
+
+.game-over-content h2 {
+  margin: 0 0 10px;
+  font-size: 22px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+
+.game-over-text {
+  font-size: 13px;
+  opacity: .9;
+  margin-bottom: 10px;
+  line-height: 1.5;
+}
+
+    /* --- Settings modal --- */
+
+    .settings-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+
+    .settings-overlay.open {
+      display: flex;
+    }
+
+    .settings-panel {
+      background: radial-gradient(circle at top, #2a2a3a 0, #101018 55%);
+      border-radius: 14px;
+      padding: 16px 18px 14px;
+      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.95);
+      width: min(420px, 96vw);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      font-size: 13px;
+    }
+
+    .settings-panel h2 {
+      margin: 0 0 4px;
+      font-size: 16px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    .settings-panel p.desc {
+      margin: 0 0 10px;
+      font-size: 11px;
+      opacity: 0.75;
+    }
+
+    .settings-row {
+      margin-bottom: 10px;
+    }
+
+    .settings-row label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      margin-bottom: 4px;
+      opacity: 0.9;
+    }
+
+    .settings-row label span.value {
+      font-weight: 600;
+      opacity: 0.9;
+    }
+
+    .settings-input {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .settings-input span.live-value {
+      font-size: 11px;
+      opacity: 0.85;
+      min-width: 80px;
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 4px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.12);
+      outline: none;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #ffdf35;
+      cursor: pointer;
+      box-shadow: 0 0 6px rgba(0, 0, 0, 0.7);
+      border: 1px solid #000;
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #ffdf35;
+      cursor: pointer;
+      box-shadow: 0 0 6px rgba(0, 0, 0, 0.7);
+      border: 1px solid #000;
+    }
+
+    .checkbox-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      margin: 4px 0 10px;
+      cursor: pointer;
+    }
+
+    .checkbox-row input {
+      width: 14px;
+      height: 14px;
+      cursor: pointer;
+    }
+
+    .settings-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 6px;
+      margin-top: 4px;
+    }
+
+    .settings-actions .pill-btn {
+      font-size: 11px;
+      padding-inline: 12px;
+    }
+
+    .settings-note {
+      margin-top: 6px;
+      font-size: 10px;
+      opacity: 0.7;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <h1>POC: Turf wars</h1>
+    <div class="subtitle">Prototype created by Lars Nohrstedt 2025. Version 0.95</div>
+
+    <div class="top-bar">
+      <div class="top-left">
+        <div id="turnInfo"></div>
+        <div id="thugInfo"></div>
+      </div>
+      <div class="top-right">
+        <button id="newGameBtn" class="pill-btn">New Game</button>
+        <button id="endTurnBtn" class="pill-btn">End Turn</button>
+      </div>
+    </div>
+
+    <div class="layout">
+      <div class="board-wrapper">
+        <div id="board" class="board"></div>
+      </div>
+
+		<div class="sidebar">
+
+			<div class="scores-wrapper">
+				<div class="legend-trigger-row" style="margin-top:8px;">
+					<button id="legendToggle" class="legend-overlay-toggle">Gangs (0) ▾</button>
+
+					<div id="scoresToggle" class="legend-overlay-toggle" style="padding:4px 10px;">
+						📊 Leaderboard ▾
+					</div>
+				</div>
+
+				<div id="legendOverlay" class="legend-overlay">
+					<h3>Gangs</h3>
+					<div id="legend"></div>
+				</div>
+				<div id="scoresOverlay" class="legend-overlay">
+					<h3>Leaderboard</h3>
+					<div id="scores"></div>
+				</div>
+			</div>
+
+			<hr style="border-color: rgba(255,255,255,0.1); margin: 8px 0;">
+
+        <hr style="border-color: rgba(255,255,255,0.1); margin: 8px 0;">
+		
+		<p><b>How to win</b><br>
+		Eiminate all opponents or control more than half the centers.
+		</p>
+		
+		<p><b>How to move</b><br>
+		Click glowing tiles to send your thugs to claim turf and grow your gang.
+		</p>
+		
+        <p><b>Moves per turn: 1</b><br>
+          +1 if you control >1 street<br>
+		  +1 per controlled center<br>
+        </p>
+
+        <p><b>How to control a street</b><br>
+          Own all 3 slots on any edge of a block.
+        </p>
+
+        <p><b>How to gain access to a center</b><br>
+          Control all 8 surrounding slots of that block.
+        </p>
+
+        <p><b>Movement within a block</b><br>
+		  You may move to any horizontal or vertical adjacent slot,
+		  or to any surrounding slot if you control the center.<br>
+		</p>
+
+        <p><b>How to move to an orthogonally adjacent block</b><br>
+		  Control the street on your side to move <br>
+        </p>
+
+        <p><b>How to move to a diagonally adjacent block</b><br>
+			Control both streets on your side to move from corner to corner<br>
+        </p>
+		  
+
+    </div>
+	  
+    </div>
+
+	<!-- Game Over Modal -->
+	<div id="gameOverModal" class="game-over-modal">
+	  <div class="game-over-content">
+		<h2 id="gameOverTitle"></h2>
+		<div id="gameOverText" class="game-over-text"></div>
+
+		<button id="gameOverNewGameBtn" class="pill-btn" style="margin-top:16px;">
+		  Start New Game
+		</button>
+	  </div>
+	</div>
+
+    <p class="hint">
+      Copyright &#169; Meatus Animi 2025. All Rights Reserved.
+    </p>
+  </div>
+
+  <!-- Settings modal -->
+  <div id="settingsOverlay" class="settings-overlay">
+    <div class="settings-panel">
+
+      <h2>SETTINGS</h2>
+      <p class="desc">Tune the city size and number of rival gangs, then hit <b>Start Game</b>.</p>
+
+		<div class="settings-row">
+		  <label for="seedInput">
+			<span>World Generation Seed</span>
+			<span class="value" id="seedDisplay">(auto)</span>
+		  </label>
+		  <input type="text" id="seedInput" placeholder="Leave empty for random seed" 
+				 style="width:100%; padding:4px 6px; font-size:11px;">
+		</div>
+
+		<div class="quick-settings-row" style="display:flex; gap:8px; margin:8px 0 14px;">
+		  <button id="easyBtn" class="pill-btn" type="button">Easy</button>
+		  <button id="normalBtn" class="pill-btn" type="button">Normal</button>
+		  <button id="hardBtn" class="pill-btn" type="button">Hard</button>
+		  <button id="crazyBtn" class="pill-btn" type="button">Nightmare</button>
+		</div>
+
+
+      <div class="settings-row">
+        <label for="blocksSlider">
+          <span>City size (blocks per side)</span>
+          <span class="value" id="blocksValue">3 × 3</span>
+        </label>
+        <div class="settings-input">
+          <input type="range" id="blocksSlider" min="2" max="9" value="3">
+          <span class="live-value" id="blocksDetail">9 blocks total</span>
+        </div>
+      </div>
+
+      <div class="settings-row">
+        <label for="aiSlider">
+          <span>AI opponents</span>
+          <span class="value" id="aiValue">3</span>
+        </label>
+        <div class="settings-input">
+          <input type="range" id="aiSlider" min="1" max="8" value="3">
+          <span class="live-value" id="aiDetail">3 AI gangs</span>
+        </div>
+      </div>
+
+      <div class="settings-actions">
+        <button id="cancelSettingsBtn" class="pill-btn" type="button">Cancel</button>
+        <button id="startGameBtn" class="pill-btn" type="button">Start New Game</button>
+      </div>
+
+      <div class="settings-note">
+        Max AI = blocks² − 1 (one block reserved for you).
+      </div>
+    </div>
+  </div>
+
+<script>
+const BLOCK_SIZE = 3;
+const STREET_SIZE = 1;
+
+let TOTAL_BLOCKS, NUM_PLAYERS, BOARD_SIZE, PLAYER_ORDER, PLAYER_NAMES;
+
+let CITY_BLOCKS_PER_SIDE = 3;
+let NUM_AI = 3;
+
+const streetRows = [];
+const streetCols = [];
+const PLAYER_COLORS = [
+  "#2a7fff", "#ff3b6a", "#3dd68c", "#ffc857",
+  "#9b5de5", "#ff9f1c", "#2ec4b6", "#ff6f91",
+  "#ff8c42", "#4cc9f0", "#f72585", "#b5179e",
+  "#7209b7", "#560bad", "#480ca8", "#3f37c9"
+];
+
+const AI_STYLE = {
+  AGGRESSIVE: "aggressive",
+  EXPANSIONIST: "expansionist",
+  OPPORTUNISTIC: "opportunistic",
+  DIPLOMATIC: "diplomatic",
+  FORTIFIER: "fortifier",
+  RAIDER: "raider"
+};
+
+let AI_BEHAVIOR = {};
+
+// ---- Deterministic PRNG (Mulberry32) ----
+let RNG = null;
+let GAME_SEED = "";
+
+
+// ---- Timeout Management ----
+let ACTIVE_TIMEOUTS = [];
+
+function safeTimeout(fn, delay) {
+  const id = setTimeout(() => {
+    ACTIVE_TIMEOUTS = ACTIVE_TIMEOUTS.filter(x => x !== id);
+    fn();
+  }, delay);
+  ACTIVE_TIMEOUTS.push(id);
+  return id;
+}
+
+function clearAllTimeouts() {
+  for (const id of ACTIVE_TIMEOUTS) clearTimeout(id);
+  ACTIVE_TIMEOUTS = [];
+}
+
+
+function computeDynamicValues() {
+  TOTAL_BLOCKS = CITY_BLOCKS_PER_SIDE * CITY_BLOCKS_PER_SIDE;
+  NUM_PLAYERS = 1 + Math.min(NUM_AI, TOTAL_BLOCKS - 1);
+	BOARD_SIZE =
+  CITY_BLOCKS_PER_SIDE * BLOCK_SIZE +
+  (CITY_BLOCKS_PER_SIDE - 1) * STREET_SIZE;  
+  streetRows.length = 0;
+  streetCols.length = 0;
+  for (let i = 1; i < CITY_BLOCKS_PER_SIDE; i++) {
+    const idx = i * BLOCK_SIZE + (i - 1) * STREET_SIZE;
+    streetRows.push(idx);
+    streetCols.push(idx);
+  }
+  PLAYER_ORDER = Array.from({ length: NUM_PLAYERS }, (_, i) => i + 1);
+
+  const styles = Object.values(AI_STYLE);
+
+  PLAYER_NAMES = {};
+  PLAYER_NAMES[1] = "You";
+  for (let p = 2; p <= NUM_PLAYERS; p++) {
+    PLAYER_NAMES[p] = `AI ${p - 1}`;
+  // Randomize AI personalities
+    AI_BEHAVIOR[p] = styles[rngInt(styles.length)];
+  }
+}
+
+  
+	function hashStringToInt(str) {
+	  let h = 1779033703 ^ str.length;
+	  for (let i = 0; i < str.length; i++) {
+		h = Math.imul(h ^ str.charCodeAt(i), 3432918353);
+		h = (h << 13) | (h >>> 19);
+	  }
+	  return (h >>> 0);
+	}
+
+	function mulberry32(a) {
+	  return function() {
+		a |= 0; a = a + 0x6D2B79F5 | 0;
+		var t = Math.imul(a ^ a >>> 15, 1 | a);
+		t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+		return ((t ^ t >>> 14) >>> 0) / 4294967296;
+	  };
+	}
+
+	// Return random int
+	function rngInt(max) {
+	  return Math.floor(RNG() * max);
+	}
+
+	// Random element
+	function rngChoice(arr) {
+	  return arr[rngInt(arr.length)];
+	}
+  
+  
+  
+  function getPlayerColor(p) {
+    return PLAYER_COLORS[(p - 1) % PLAYER_COLORS.length];
+  }
+
+  // --- Game state ---
+  let board = [];
+  let currentPlayerIndex = 0;
+  let thugsRemaining = 0;
+  let consecutiveSkips = 0;
+  let gameOver = false;
+  let currentValidMoves = [];
+  let currentValidMoveSet = new Set();
+  let turnNumber = 0; // counts full player-1 rounds
+
+  const boardEl = document.getElementById("board");
+  const turnInfoEl = document.getElementById("turnInfo");
+  const thugInfoEl = document.getElementById("thugInfo");
+  const endTurnBtn = document.getElementById("endTurnBtn");
+  const newGameBtn = document.getElementById("newGameBtn");
+  const scoresEl = document.getElementById("scores");
+  const scoresToggleEl = document.getElementById("scoresToggle");
+  const legendEl = document.getElementById("legend");
+  const legendOverlay = document.getElementById("legendOverlay");
+  const legendToggleBtn = document.getElementById("legendToggle");
+
+const gameOverModal = document.getElementById("gameOverModal");
+const gameOverTitle = document.getElementById("gameOverTitle");
+const gameOverText = document.getElementById("gameOverText");
+const gameOverNewGameBtn = document.getElementById("gameOverNewGameBtn");
+
+function showGameOverModal(title, textHTML) {
+  gameOverTitle.innerHTML = title;
+  gameOverText.innerHTML = textHTML;
+
+  // prevent lingering AI timeouts
+  clearAllTimeouts();
+
+  // show modal
+  gameOverModal.classList.add("open");
+}
+
+
+  // --- Street helpers ---
+  function isStreetRow(row) {
+    return streetRows.includes(row);
+  }
+  function isStreetCol(col) {
+    return streetCols.includes(col);
+  }
+  function isStreetCell(row, col) {
+    return isStreetRow(row) || isStreetCol(col);
+  }
+
+  // --- Block index helpers ---
+
+  function getBlockCoords(blockIndex) {
+    const br = Math.floor(blockIndex / CITY_BLOCKS_PER_SIDE);
+    const bc = blockIndex % CITY_BLOCKS_PER_SIDE;
+    return { br, bc };
+  }
+
+  // Given global row/col that is NOT a street, find which block it belongs to (0..TOTAL_BLOCKS-1)
+  function getBlockIndex(row, col) {
+    if (isStreetCell(row, col)) return -1;
+
+    // count how many street rows/cols are before this row/col
+    let streetsBeforeRow = streetRows.filter(sr => sr < row).length;
+    let streetsBeforeCol = streetCols.filter(sc => sc < col).length;
+
+    const rowWithinBlocks = row - streetsBeforeRow * STREET_SIZE;
+    const colWithinBlocks = col - streetsBeforeCol * STREET_SIZE;
+
+    const br = Math.floor(rowWithinBlocks / BLOCK_SIZE);
+    const bc = Math.floor(colWithinBlocks / BLOCK_SIZE);
+
+    if (br < 0 || br >= CITY_BLOCKS_PER_SIDE || bc < 0 || bc >= CITY_BLOCKS_PER_SIDE) {
+      return -1;
+    }
+    return br * CITY_BLOCKS_PER_SIDE + bc;
+  }
+
+  function getBlockTopLeft(blockIndex) {
+    const { br, bc } = getBlockCoords(blockIndex);
+    const row = br * BLOCK_SIZE + br * STREET_SIZE;
+    const col = bc * BLOCK_SIZE + bc * STREET_SIZE;
+    return { row, col };
+  }
+
+  function getLocalCoords(row, col) {
+    const blockIndex = getBlockIndex(row, col);
+    if (blockIndex === -1) return null;
+    const { row: br, col: bc } = getBlockTopLeft(blockIndex);
+    return { lr: row - br, lc: col - bc };
+  }
+
+  function isCenterCell(row, col) {
+    const local = getLocalCoords(row, col);
+    if (!local) return false;
+    return local.lr === 1 && local.lc === 1;
+  }
+
+  function ownsCell(player, row, col) {
+    return board[row][col] === player;
+  }
+
+  function centerOwner(blockIndex) {
+    const tl = getBlockTopLeft(blockIndex);
+    if (!tl) return 0;
+    return board[tl.row + 1][tl.col + 1];
+  }
+
+  // --- Streets & income inside blocks ---
+
+  function controlsStreet(player, blockIndex, streetSide) {
+    const tl = getBlockTopLeft(blockIndex);
+    if (!tl) return false;
+    const { row, col } = tl;
+
+    if (streetSide === "N") {
+      for (let c = 0; c < BLOCK_SIZE; c++) {
+        if (!ownsCell(player, row, col + c)) return false;
+      }
+      return true;
+    }
+    if (streetSide === "S") {
+      for (let c = 0; c < BLOCK_SIZE; c++) {
+        if (!ownsCell(player, row + BLOCK_SIZE - 1, col + c)) return false;
+      }
+      return true;
+    }
+    if (streetSide === "W") {
+      for (let r = 0; r < BLOCK_SIZE; r++) {
+        if (!ownsCell(player, row + r, col)) return false;
+      }
+      return true;
+    }
+    if (streetSide === "E") {
+      for (let r = 0; r < BLOCK_SIZE; r++) {
+        if (!ownsCell(player, row + r, col + BLOCK_SIZE - 1)) return false;
+      }
+      return true;
+    }
+    return false;
+  }
+
+  function countFullyControlledStreets(player) {
+    let count = 0;
+    for (let b = 0; b < TOTAL_BLOCKS; b++) {
+      if (controlsStreet(player, b, "N")) count++;
+      if (controlsStreet(player, b, "S")) count++;
+      if (controlsStreet(player, b, "E")) count++;
+      if (controlsStreet(player, b, "W")) count++;
+    }
+    return count;
+  }
+
+  function countCenters(player) {
+    let centers = 0;
+    for (let b = 0; b < TOTAL_BLOCKS; b++) {
+      if (centerOwner(b) === player) centers++;
+    }
+    return centers;
+  }
+
+  function calcThugIncome(player) {
+    const streets = countFullyControlledStreets(player);
+    const centers = countCenters(player);
+    return centers + (streets >= 2 ? 2 : 1);
+  }
+
+  // --- Access rules ---
+
+  function hasAccessToBlock(player, blockIndex) {
+    return HOME_BLOCK[player] === blockIndex || centerOwner(blockIndex) === player;
+  }
+
+  function isOnBlockEdge(blockIndex, row, col, streetSide) {
+    const local = getLocalCoords(row, col);
+    if (!local) return false;
+    const { lr, lc } = local;
+    if (streetSide === "N") return lr === 0;
+    if (streetSide === "S") return lr === BLOCK_SIZE - 1;
+    if (streetSide === "W") return lc === 0;
+    if (streetSide === "E") return lc === BLOCK_SIZE - 1;
+    return false;
+  }
+
+	  // SPECIAL: diagonal corner access across an intersection
+	  // "If your slot is a corner slot in a block where you control both
+	  // streets of that corner, you can move to the diagonal corner
+	  // across the crossroad."
+	function canEnterDiagonal(player, row, col) {
+	  // Target must be a block cell and must be a corner
+	  const blockB = getBlockIndex(row, col);
+	  if (blockB === -1) return false;
+
+	  const localB = getLocalCoords(row, col);
+	  if (!localB) return false;
+
+	  const { lr: lrB, lc: lcB } = localB;
+
+	  // Target must be one of the 4 corners
+	  const isNW = (lrB === 0 && lcB === 0);
+	  const isNE = (lrB === 0 && lcB === BLOCK_SIZE - 1);
+	  const isSW = (lrB === BLOCK_SIZE - 1 && lcB === 0);
+	  const isSE = (lrB === BLOCK_SIZE - 1 && lcB === BLOCK_SIZE - 1);
+	  if (!(isNW || isNE || isSW || isSE)) return false;
+
+	  // Coordinates of block B
+	  const { br: brB, bc: bcB } = getBlockCoords(blockB);
+
+	  // All four diagonal cases:
+	  const cases = [
+		{ // entering NW → source is SE of NW block
+		  match: isNW,
+		  dbr: -1, dbc: -1,
+		  myLR: BLOCK_SIZE - 1, myLC: BLOCK_SIZE - 1,
+		  streets: ["S", "E"]
+		},
+		{ // entering NE → source is SW of NE block
+		  match: isNE,
+		  dbr: -1, dbc: 1,
+		  myLR: BLOCK_SIZE - 1, myLC: 0,
+		  streets: ["S", "W"]
+		},
+		{ // entering SW → source is NE of SW block
+		  match: isSW,
+		  dbr: 1, dbc: -1,
+		  myLR: 0, myLC: BLOCK_SIZE - 1,
+		  streets: ["N", "E"]
+		},
+		{ // entering SE → source is NW of SE block
+		  match: isSE,
+		  dbr: 1, dbc: 1,
+		  myLR: 0, myLC: 0,
+		  streets: ["N", "W"]
+		}
+	  ];
+
+	  for (const rule of cases) {
+		if (!rule.match) continue;
+
+		const brA = brB + rule.dbr;
+		const bcA = bcB + rule.dbc;
+
+		// Block A must exist
+		if (brA < 0 || brA >= CITY_BLOCKS_PER_SIDE ||
+			bcA < 0 || bcA >= CITY_BLOCKS_PER_SIDE) continue;
+
+		const blockA = brA * CITY_BLOCKS_PER_SIDE + bcA;
+
+		// Player must have access to block A
+		if (!hasAccessToBlock(player, blockA)) continue;
+
+		// Player must own the correct corner cell of block A
+		const { row: rowA, col: colA } = getBlockTopLeft(blockA);
+		if (board[rowA + rule.myLR][colA + rule.myLC] !== player) continue;
+
+		// Player must control both streets forming that corner
+		if (!controlsStreet(player, blockA, rule.streets[0])) continue;
+		if (!controlsStreet(player, blockA, rule.streets[1])) continue;
+
+		// ✔ Diagonal move is legal
+		return true;
+	  }
+
+	  return false;
+	}
+
+  function hasAccessToCell(player, row, col) {
+    const blockIndex = getBlockIndex(row, col);
+    if (blockIndex === -1) return false; // can't claim streets
+
+    // Direct: home or owned center
+    if (hasAccessToBlock(player, blockIndex)) return true;
+
+    const { br, bc } = getBlockCoords(blockIndex);
+
+	// Orthogonal access: must control the street on your side
+	const dirs = [
+	  { sideB: "N", dbr: -1, dbc: 0, sideA: "S" },
+	  { sideB: "S", dbr: 1, dbc: 0, sideA: "N" },
+	  { sideB: "W", dbr: 0, dbc: -1, sideA: "E" },
+	  { sideB: "E", dbr: 0, dbc: 1, sideA: "W" }
+	];
+
+	for (const d of dirs) {
+	  const nbrBr = br + d.dbr;
+	  const nbrBc = bc + d.dbc;
+
+	  // Neighbor must exist
+	  if (
+		nbrBr < 0 || nbrBr >= CITY_BLOCKS_PER_SIDE ||
+		nbrBc < 0 || nbrBc >= CITY_BLOCKS_PER_SIDE
+	  ) continue;
+
+	  const blockA = nbrBr * CITY_BLOCKS_PER_SIDE + nbrBc;
+
+	  // Must have access to block A (foothold or owned center)
+	  if (!hasAccessToBlock(player, blockA)) continue;
+
+	  // Must control the street on your side (blockA side)
+	  if (!controlsStreet(player, blockA, d.sideA)) continue;
+
+	  // The target cell must be on the matching edge of block B
+	  if (!isOnBlockEdge(blockIndex, row, col, d.sideB)) continue;
+
+	  return true; // ✔ Valid orthogonal entry
+	}
+
+
+    // Diagonal corner rule
+    if (canEnterDiagonal(player, row, col)) return true;
+
+    return false;
+  }
+
+  // Center capture condition
+  function canCaptureCenter(player, row, col) {
+    if (!isCenterCell(row, col)) return true;
+    const blockIndex = getBlockIndex(row, col);
+    if (blockIndex === -1) return false;
+    const tl = getBlockTopLeft(blockIndex);
+    const { row: br, col: bc } = tl;
+    for (let dr = 0; dr < BLOCK_SIZE; dr++) {
+      for (let dc = 0; dc < BLOCK_SIZE; dc++) {
+        if (dr === 1 && dc === 1) continue;
+        if (!ownsCell(player, br + dr, bc + dc)) return false;
+      }
+    }
+    return true;
+  }
+
+  function playerHasFoothold(player, blockIndex) {
+    const tl = getBlockTopLeft(blockIndex);
+    if (!tl) return false;
+    const { row, col } = tl;
+    for (let r = 0; r < BLOCK_SIZE; r++) {
+      for (let c = 0; c < BLOCK_SIZE; c++) {
+        if (board[row + r][col + c] === player) return true;
+      }
+    }
+    return false;
+  }
+
+	function isCornerOfBlockCell(blockIndex, row, col) {
+	  if (blockIndex === -1) return false;
+	  const local = getLocalCoords(row, col);
+	  if (!local) return false;
+
+	  // Ensure the cell actually belongs to that block
+	  if (getBlockIndex(row, col) !== blockIndex) return false;
+
+	  const { lr, lc } = local;
+	  return (
+		(lr === 0 && lc === 0) ||
+		(lr === 0 && lc === BLOCK_SIZE - 1) ||
+		(lr === BLOCK_SIZE - 1 && lc === 0) ||
+		(lr === BLOCK_SIZE - 1 && lc === BLOCK_SIZE - 1)
+	  );
+	}
+
+	function getNeighborBlocks(blockIndex) {
+	  const { br, bc } = getBlockCoords(blockIndex);
+	  const neighbors = [];
+
+	  function pushIfValid(nbrBr, nbrBc, sideFromFortress, sideOnNeighbor) {
+		if (
+		  nbrBr >= 0 && nbrBr < CITY_BLOCKS_PER_SIDE &&
+		  nbrBc >= 0 && nbrBc < CITY_BLOCKS_PER_SIDE
+		) {
+		  neighbors.push({
+			block: nbrBr * CITY_BLOCKS_PER_SIDE + nbrBc,
+			sideFromFortress,
+			sideOnNeighbor
+		  });
+		}
+	  }
+
+	  // Blocks around this one
+	  pushIfValid(br - 1, bc, "N", "S"); // neighbor above
+	  pushIfValid(br + 1, bc, "S", "N"); // below
+	  pushIfValid(br, bc - 1, "W", "E"); // left
+	  pushIfValid(br, bc + 1, "E", "W"); // right
+
+	  return neighbors;
+	}
+
+	function anyEnemyControlsStreet(player, blockIndex, side) {
+	  for (let p = 1; p <= NUM_PLAYERS; p++) {
+		if (p === player) continue;
+		if (controlsStreet(p, blockIndex, side)) return true;
+	  }
+	  return false;
+	}
+
+
+  // --- Valid moves ---
+
+  function getValidMoves(player) {
+    const moves = [];
+
+    for (let r = 0; r < BOARD_SIZE; r++) {
+      for (let c = 0; c < BOARD_SIZE; c++) {
+
+        if (isStreetCell(r, c)) continue; // can't claim roads
+
+        const owner = board[r][c];
+        if (owner === player) continue;
+
+        const blockIndex = getBlockIndex(r, c);
+        if (blockIndex === -1) continue;
+
+        const ownsCenterOfBlock = (centerOwner(blockIndex) === player);
+        const hasFoothold = playerHasFoothold(player, blockIndex);
+
+        // 1) Adjacency (including across a street) OR diagonal-corner rule,
+        //    unless you own the center already.
+        let adjacentFriendly = false;
+        if (!ownsCenterOfBlock) {
+          const dirs = [
+            [1, 0],
+            [-1, 0],
+            [0, 1],
+            [0, -1]
+          ];
+          for (const [dr, dc] of dirs) {
+            const nr = r + dr, nc = c + dc;
+            if (nr < 0 || nr >= BOARD_SIZE || nc < 0 || nc >= BOARD_SIZE) continue;
+
+            if (board[nr][nc] === player) {
+              adjacentFriendly = true;
+              break;
+            }
+
+            // pass-through adjacency over a street tile
+            if (isStreetCell(nr, nc)) {
+              const nr2 = r + 2 * dr, nc2 = c + 2 * dc;
+              if (nr2 >= 0 && nr2 < BOARD_SIZE && nc2 >= 0 && nc2 < BOARD_SIZE) {
+                if (board[nr2][nc2] === player) {
+                  adjacentFriendly = true;
+                  break;
+                }
+              }
+            }
+          }
+
+          // if not orthogonally adjacent, see if the special diagonal rule applies
+          if (!adjacentFriendly && !canEnterDiagonal(player, r, c)) {
+            continue;
+          }
+        }
+
+        // 2) If no foothold yet in this block, entry needs block access
+        if (!hasFoothold) {
+          if (!hasAccessToCell(player, r, c)) continue;
+        }
+
+        // 3) Center capture condition
+        if (!canCaptureCenter(player, r, c)) continue;
+
+        moves.push({ r, c });
+      }
+    }
+
+    return moves;
+  }
+
+  function setValidMoves(moves) {
+    currentValidMoves = moves;
+    currentValidMoveSet = new Set(moves.map(m => `${m.r},${m.c}`));
+  }
+
+  function isHumanTurn() {
+    return PLAYER_ORDER[currentPlayerIndex] === 1 && !gameOver;
+  }
+
+	function gangIsAlive(p) {
+	  for (let r = 0; r < BOARD_SIZE; r++) {
+		for (let c = 0; c < BOARD_SIZE; c++) {
+		  if (board[r][c] === p) return true;
+		}
+	  }
+	  return false;
+	}
+
+
+  // --- Rendering ---
+
+	function renderLegend() {
+	  legendEl.innerHTML = "";
+
+	  let aliveCount = 0;
+
+	  for (let p = 1; p <= NUM_PLAYERS; p++) {
+		if (!gangIsAlive(p)) continue;   // <--- hide dead gangs
+		aliveCount++;
+
+		const row = document.createElement("div");
+		row.className = "legend-row";
+
+		const swatch = document.createElement("div");
+		swatch.className = "legend-swatch";
+		swatch.style.backgroundColor = getPlayerColor(p);
+
+		const label = document.createElement("span");
+		label.className = "legend-label";
+
+		if (p === 1) {
+		  label.textContent = PLAYER_NAMES[p]; // "You"
+		} else {
+		  label.textContent = `${PLAYER_NAMES[p]} — ${AI_BEHAVIOR[p]}`;
+		}
+
+		row.appendChild(swatch);
+		row.appendChild(label);
+		legendEl.appendChild(row);
+	  }
+
+	  legendToggleBtn.textContent = `Gangs (${aliveCount}) ▾`;
+	}
+
+  function renderBoard() {
+    boardEl.innerHTML = "";
+
+    const humanTurn = isHumanTurn();
+
+    for (let r = 0; r < BOARD_SIZE; r++) {
+      for (let c = 0; c < BOARD_SIZE; c++) {
+        const cell = document.createElement("div");
+        cell.classList.add("cell");
+        cell.dataset.row = r;
+        cell.dataset.col = c;
+
+        if (isStreetCell(r, c)) {
+          cell.classList.add("street-cell");
+          const sr = isStreetRow(r);
+          const sc = isStreetCol(c);
+          if (sr && sc) {
+            cell.classList.add("road-x");
+          } else if (sr) {
+            cell.classList.add("road-h");
+          } else if (sc) {
+            cell.classList.add("road-v");
+          }
+        } else {
+          const owner = board[r][c];
+
+          if (owner > 0) {
+            const color = getPlayerColor(owner);
+            cell.style.background = color;
+            cell.style.boxShadow = `0 0 6px ${color}88`;
+          }
+
+          if (isCenterCell(r, c)) cell.classList.add("center");
+
+          if (owner > 0) {
+            const token = document.createElement("span");
+            token.classList.add("token");
+            if (owner === 1) {
+              token.classList.add("player-token");
+              token.textContent = "Y";
+            } else {
+              token.classList.add("ai-token");
+              token.textContent = String(owner - 1);
+            }
+            cell.appendChild(token);
+          }
+
+          if (humanTurn) {
+            const key = `${r},${c}`;
+            if (currentValidMoveSet.has(key)) {
+              cell.classList.add("valid-move");
+            }
+          }
+        }
+
+        boardEl.appendChild(cell);
+      }
+    }
+  }
+
+  function renderStatus() {
+    const player = PLAYER_ORDER[currentPlayerIndex];
+	turnInfoEl.innerHTML =
+    `<span style="opacity:0.7; font-size:11px;">World Generation Seed: ${GAME_SEED}</span><br>
+	Turn: ${PLAYER_NAMES[player]} (${player === 1 ? "You" : "AI"}) — Round ${turnNumber}`;
+	 thugInfoEl.textContent = `Moves this turn: ${thugsRemaining}`;
+
+    endTurnBtn.disabled = !isHumanTurn() || gameOver;
+  }
+
+	function renderScores() {
+	  // Build raw score list
+	  const entries = [];
+	  for (let p = 1; p <= NUM_PLAYERS; p++) {
+	    if (!gangIsAlive(p)) continue;   // <--- hide eliminated players
+		const streets = countFullyControlledStreets(p);
+		const centers = countCenters(p);
+		const score = (streets > 1 ? 1 : 0) + centers;
+
+		entries.push({
+		  p,
+		  streets,
+		  centers,
+		  score,
+		  isPlayer: p === 1,
+		});
+	  }
+
+	  // Sort by score DESC, then streets DESC, then low ID
+	  entries.sort(
+		(a, b) => b.score - a.score || b.streets - a.streets || a.p - b.p
+	  );
+
+	  // Take top 10
+	  let displayEntries = entries.slice(0, 10);
+
+	  // If the human isn’t in top 10, append them at bottom
+	  if (!displayEntries.some(e => e.p === 1)) {
+		const me = entries.find(e => e.p === 1);
+		displayEntries.push(me);
+	  }
+
+	  // Build HTML
+	  let html = `<b>Leaderboard</b><br><br>`;
+
+	  displayEntries.forEach((e, idx) => {
+		const rank = idx + 1;
+
+		const name = e.isPlayer
+		  ? `<b>${PLAYER_NAMES[e.p]}</b>`
+		  : `${PLAYER_NAMES[e.p]} <span style="opacity:.7">(${AI_BEHAVIOR[e.p]})</span>`;
+
+		html += `
+		  <div style="margin-bottom:6px;">
+			<b>${rank}.</b> ${name}<br>
+			<span style="opacity:.85">
+			  Centers: ${e.centers}, Streets: ${e.streets}, 
+			  Score: <b>${e.score}</b>
+			</span>
+		  </div>
+		`;
+	  });
+
+	  scoresEl.innerHTML = html;
+	}
+
+  // --- Turns & flow ---
+
+	function controlsAnyCell(p) {
+	  for (let r = 0; r < BOARD_SIZE; r++) {
+		for (let c = 0; c < BOARD_SIZE; c++) {
+		  if (board[r][c] === p) return true;
+		}
+	  }
+	  return false;
+	}
+
+
+  function applyMove(player, r, c) {
+    if (isStreetCell(r, c)) return;
+    board[r][c] = player;
+  }
+
+  function nextPlayer() {
+    currentPlayerIndex = (currentPlayerIndex + 1) % PLAYER_ORDER.length;
+    startTurn();
+  }
+  
+	function checkDominationVictory(player) {
+	  const totalCenters = TOTAL_BLOCKS;
+	  const threshold = Math.floor(totalCenters / 2);
+
+	  const controlled = countCenters(player);
+
+	  if (controlled > threshold) {
+		const winnerName = PLAYER_NAMES[player];
+		const isHuman = (player === 1);
+
+		gameOver = true;
+		showGameOverModal(titleText, `
+		  <b>Game Over — ${isHuman ? "You Win!" : winnerName + " Wins"}</b><br>
+		  ${winnerName} has achieved <b>Domination Victory</b> by controlling
+		  more than half of all block centers.<br><br>
+		  <b>Game ended on Round ${turnNumber}</b>
+		`);
+
+		renderBoard();
+		renderScores();
+		return true;
+	  }
+
+	  return false;
+	}
+  
+
+	function checkElimination() {
+	  let humanAlive = false;
+	  let aiAlive = false;
+
+	  for (let r = 0; r < BOARD_SIZE; r++) {
+		for (let c = 0; c < BOARD_SIZE; c++) {
+		  const owner = board[r][c];
+		  if (owner === 1) humanAlive = true;
+		  else if (owner > 1) aiAlive = true;
+		}
+	  }
+
+	  // HUMAN DEAD → instant loss
+	  if (!humanAlive) {
+		gameOver = true;
+		showGameOverModal('<b>Game Over — You Lose</b>',`
+		  Your gang has been wiped out.<br><br>
+		  <b>Game ended on Round ${turnNumber}</b>
+		`);
+		renderBoard();
+		renderScores();
+		return true;
+	  }
+
+	  // ALL AI DEAD → instant win
+	  if (!aiAlive) {
+		gameOver = true;
+		showGameOverModal('<b>Game Over — You Win!</b>',`
+		  You control the entire city.<br><br>
+		  <b>Game ended on Round ${turnNumber}</b>
+		`);
+		renderBoard();
+		renderScores();
+		return true;
+	  }
+
+	  return false;
+	}
+
+
+  function startTurn() {
+    if (gameOver) return;
+
+    const player = PLAYER_ORDER[currentPlayerIndex];
+	if (checkDominationVictory(player)) return;	
+    if (player === 1) {
+      // new round starts when it comes back to the human
+      turnNumber++;
+    }
+
+    const income = calcThugIncome(player);
+    const moves = getValidMoves(player);
+
+    if (income <= 0 || moves.length === 0) {
+      thugsRemaining = 0;
+      setValidMoves([]);
+      consecutiveSkips++;
+      renderBoard();
+      renderStatus();
+      renderScores();
+
+      if (consecutiveSkips >= NUM_PLAYERS) {
+        endGame();
+      } else {
+        safeTimeout(nextPlayer, 350);
+      }
+      return;
+    }
+
+    consecutiveSkips = 0;
+    thugsRemaining = income;
+    setValidMoves(moves);
+
+    renderBoard();
+    renderStatus();
+    renderScores();
+
+    if (player !== 1) {
+      endTurnBtn.disabled = true;
+      runAITurn(player);
+    }
+  }
+
+  function endGame() {
+    gameOver = true;
+    renderBoard();
+    renderScores();
+
+    const summary = [];
+    for (let p = 1; p <= NUM_PLAYERS; p++) {
+      const streets = countFullyControlledStreets(p);
+      const centers = countCenters(p);
+      summary.push({
+        p,
+        name: PLAYER_NAMES[p],
+        streets,
+        centers,
+        score: streets + centers
+      });
+    }
+    summary.sort((a, b) => b.score - a.score);
+
+    let text = `Game ended on Round <b>${turnNumber}</b>.<br>`;
+    text += "No more moves or income for a full round.<br><br>";
+    text += "Final scores:<br>";
+    summary.forEach((s, idx) => {
+      const place = idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : "💀";
+      text += `${place} ${s.name} — Streets: ${s.streets}, Centers: ${s.centers}, Score: ${s.score}<br>`;
+    });
+
+    showGameOverModal('<b>Game Over</b>',text);
+  }
+
+  function endHumanTurn() {
+    if (!isHumanTurn() || gameOver) return;
+    thugsRemaining = 0;
+    setValidMoves([]);
+    renderBoard();
+    renderStatus();
+    renderScores();
+    safeTimeout(nextPlayer, 250);
+  }
+
+  // --- AI logic ---
+
+  function runAITurn(player) {
+    function step() {
+      if (gameOver) return;
+
+      if (thugsRemaining <= 0) {
+        setValidMoves([]);
+        renderBoard();
+        renderStatus();
+        renderScores();
+        safeTimeout(nextPlayer, 250);
+        return;
+      }
+
+      const moves = getValidMoves(player);
+      setValidMoves(moves);
+
+      if (moves.length === 0) {
+        thugsRemaining = 0;
+        renderBoard();
+        renderStatus();
+        renderScores();
+        safeTimeout(nextPlayer, 250);
+        return;
+      }
+
+		// Determine personality
+		const style = AI_BEHAVIOR[player] || AI_STYLE.AGGRESSIVE;
+
+		// Categorize all possible moves
+		const enemyMoves = moves.filter(m => board[m.r][m.c] !== 0 && board[m.r][m.c] !== player);
+		const emptyMoves = moves.filter(m => board[m.r][m.c] === 0);
+
+		// Helper evaluators
+		function wouldCaptureCenter(m) {
+		  return isCenterCell(m.r, m.c) && canCaptureCenter(player, m.r, m.c);
+		}
+
+		function wouldCompleteStreet(m) {
+		  const block = getBlockIndex(m.r, m.c);
+		  if (block === -1) return false;
+
+		  const sides = ["N", "S", "E", "W"];
+		  const owned = sides.filter(side => controlsStreet(player, block, side)).length;
+
+		  // A move is "valuable" if it helps progress toward street control
+		  return owned > 0;
+		}
+
+		function blockScore(p) {
+		  return countCenters(p) * 4 + countFullyControlledStreets(p);
+		}
+
+		// High value moves
+		const centerMoves = moves.filter(wouldCaptureCenter);
+		const streetMoves = moves.filter(wouldCompleteStreet);
+
+		// Diplomatic special rule
+		const scores = {};
+		for (let p = 1; p <= NUM_PLAYERS; p++) scores[p] = blockScore(p);
+
+		const maxScore = Math.max(...Object.values(scores));
+		const minScore = Math.min(...Object.values(scores));
+		const leader = Object.keys(scores).find(p => scores[p] === maxScore);
+		const weakest = Object.keys(scores).find(p => scores[p] === minScore);
+
+		// UNIVERSAL RULE: Always take a center if it's legally capturable
+		if (centerMoves.length > 0) {
+			const move = centerMoves[Math.floor(Math.random() * centerMoves.length)];
+			applyMove(player, move.r, move.c);
+			thugsRemaining--;
+
+			if (checkDominationVictory(player)) return;
+			if (checkElimination()) return;
+
+			renderBoard();
+			renderStatus();
+			renderScores();
+			safeTimeout(step, 320);
+			return; // <---- IMPORTANT, skip style logic
+		}
+
+
+		// Now choose based on personality
+		let choicePool = [];
+
+		switch (style) {
+
+		  // ------------------------------------------------------
+		  // 1. AGGRESSIVE — attack first, weakest enemy target
+		  // ------------------------------------------------------
+		  case AI_STYLE.AGGRESSIVE: {
+			if (enemyMoves.length) {
+			  let best = Infinity;
+			  let chosen = [];
+			  enemyMoves.forEach(m => {
+				const e = board[m.r][m.c];
+				const score = blockScore(e);
+				if (score < best) {
+				  best = score;
+				  chosen = [m];
+				} else if (score === best) {
+				  chosen.push(m);
+				}
+			  });
+			  choicePool = chosen;
+			} else {
+			  choicePool = emptyMoves;
+			}
+			break;
+		  }
+
+		  // ------------------------------------------------------
+		  // 2. EXPANSIONIST — empty first, then attack weakest
+		  // ------------------------------------------------------
+		  case AI_STYLE.EXPANSIONIST: {
+
+			if (emptyMoves.length) {
+			  choicePool = emptyMoves;
+			  break;
+			}
+
+			if (enemyMoves.length) {
+			  let best = Infinity;
+			  let chosen = [];
+			  enemyMoves.forEach(m => {
+				const e = board[m.r][m.c];
+				const score = blockScore(e);
+				if (score < best) {
+				  best = score;
+				  chosen = [m];
+				} else if (score === best) {
+				  chosen.push(m);
+				}
+			  });
+			  choicePool = chosen;
+			  break;
+			}
+
+			choicePool = moves;
+			break;
+		  }
+
+		  // ------------------------------------------------------
+		  // 3. DIPLOMATIC — empty first, then attack strongest
+		  // ------------------------------------------------------
+		  case AI_STYLE.DIPLOMATIC: {
+
+			if (emptyMoves.length) {
+			  choicePool = emptyMoves;
+			  break;
+			}
+
+			// attack strongest enemy
+			let best = -Infinity;
+			let chosen = [];
+			enemyMoves.forEach(m => {
+			  const e = board[m.r][m.c];
+			  const score = blockScore(e);
+			  if (score > best) {
+				best = score;
+				chosen = [m];
+			  } else if (score === best) {
+				chosen.push(m);
+			  }
+			});
+
+			choicePool = chosen.length ? chosen : enemyMoves;
+			break;
+		  }
+
+		  // ------------------------------------------------------
+		  // 4. OPPORTUNISTIC
+		  // centers handled globally!
+		  // streets → corners → empty → enemy
+		  // enemy targeting:
+		  //   - if target includes diplomat → strongest
+		  //   - otherwise → weakest
+		  // ------------------------------------------------------
+		  case AI_STYLE.OPPORTUNISTIC: {
+
+			// streets first
+			if (streetMoves.length) {
+			  choicePool = streetMoves;
+			  break;
+			}
+
+			// corners next
+			const cornerMoves = moves.filter(m => {
+			  const local = getLocalCoords(m.r, m.c);
+			  if (!local) return false;
+			  const { lr, lc } = local;
+			  return (
+				(lr === 0 && lc === 0) ||
+				(lr === 0 && lc === BLOCK_SIZE - 1) ||
+				(lr === BLOCK_SIZE - 1 && lc === 0) ||
+				(lr === BLOCK_SIZE - 1 && lc === BLOCK_SIZE - 1)
+			  );
+			});
+
+			if (cornerMoves.length) {
+			  choicePool = cornerMoves;
+			  break;
+			}
+
+			// empty next
+			if (emptyMoves.length) {
+			  choicePool = emptyMoves;
+			  break;
+			}
+
+			// forced to attack
+			if (enemyMoves.length) {
+			  const hasDiplomatTarget = enemyMoves.some(m => {
+				const e = board[m.r][m.c];
+				return AI_BEHAVIOR[e] === AI_STYLE.DIPLOMATIC;
+			  });
+
+			  let chosen = [];
+
+			  if (hasDiplomatTarget) {
+				// attack strongest
+				let best = -Infinity;
+				enemyMoves.forEach(m => {
+				  const e = board[m.r][m.c];
+				  const score = blockScore(e);
+				  if (score > best) {
+					best = score;
+					chosen = [m];
+				  } else if (score === best) {
+					chosen.push(m);
+				  }
+				});
+			  } else {
+				// attack weakest
+				let best = Infinity;
+				enemyMoves.forEach(m => {
+				  const e = board[m.r][m.c];
+				  const score = blockScore(e);
+				  if (score < best) {
+					best = score;
+					chosen = [m];
+				  } else if (score === best) {
+					chosen.push(m);
+				  }
+				});
+			  }
+
+			  choicePool = chosen;
+			  break;
+			}
+
+			// fallback
+			choicePool = moves;
+			break;
+		 }
+		// 4. FORTIFIER — defend every block where they own the center
+		case AI_STYLE.FORTIFIER: {
+		  // All blocks where this AI owns the center
+		  const fortressBlocks = [];
+		  for (let b = 0; b < TOTAL_BLOCKS; b++) {
+			if (centerOwner(b) === player) fortressBlocks.push(b);
+		  }
+
+		  // ----- 1) Fortifications in neighbor blocks to break ENEMY streets -----
+
+		  let fortifyEnemyStreetMoves = [];
+		  let fortifyEnemyStreetCornerMoves = [];
+
+		  for (const b of fortressBlocks) {
+			const neighbors = getNeighborBlocks(b);
+			for (const nb of neighbors) {
+			  // Only care if some enemy fully controls that border street
+			  if (!anyEnemyControlsStreet(player, nb.block, nb.sideOnNeighbor)) continue;
+
+			  for (const m of moves) {
+				if (getBlockIndex(m.r, m.c) !== nb.block) continue;
+				if (!isOnBlockEdge(nb.block, m.r, m.c, nb.sideOnNeighbor)) continue;
+
+				fortifyEnemyStreetMoves.push(m);
+				if (isCornerOfBlockCell(nb.block, m.r, m.c)) {
+				  fortifyEnemyStreetCornerMoves.push(m);
+				}
+			  }
+			}
+		  }
+
+		  // Prefer corner fortifications (break 2 streets / block diagonals)
+		  if (fortifyEnemyStreetCornerMoves.length) {
+			choicePool = fortifyEnemyStreetCornerMoves;
+			break;
+		  }
+		  if (fortifyEnemyStreetMoves.length) {
+			choicePool = fortifyEnemyStreetMoves;
+			break;
+		  }
+
+		  // ----- 2) Preventive fortifications (no enemy street yet, but build ward) -----
+
+		  let borderFortMoves = [];
+		  let borderFortCornerMoves = [];
+
+		  for (const b of fortressBlocks) {
+			const neighbors = getNeighborBlocks(b);
+			for (const nb of neighbors) {
+			  for (const m of moves) {
+				if (getBlockIndex(m.r, m.c) !== nb.block) continue;
+				if (!isOnBlockEdge(nb.block, m.r, m.c, nb.sideOnNeighbor)) continue;
+
+				borderFortMoves.push(m);
+				if (isCornerOfBlockCell(nb.block, m.r, m.c)) {
+				  borderFortCornerMoves.push(m);
+				}
+			  }
+			}
+		  }
+
+		  if (borderFortCornerMoves.length) {
+			choicePool = borderFortCornerMoves;
+			break;
+		  }
+		  if (borderFortMoves.length) {
+			choicePool = borderFortMoves;
+			break;
+		  }
+
+		  // ----- 3) Secure own fortress blocks: streets → corners → fill interior -----
+
+		  let ownBlockCornerMoves = [];
+		  let ownBlockEdgeMoves = [];
+		  let ownBlockOtherMoves = [];
+
+		  for (const m of moves) {
+			const b = getBlockIndex(m.r, m.c);
+			if (!fortressBlocks.includes(b)) continue;
+
+			if (isCornerOfBlockCell(b, m.r, m.c)) {
+			  ownBlockCornerMoves.push(m);
+			} else if (
+			  isOnBlockEdge(b, m.r, m.c, "N") ||
+			  isOnBlockEdge(b, m.r, m.c, "S") ||
+			  isOnBlockEdge(b, m.r, m.c, "E") ||
+			  isOnBlockEdge(b, m.r, m.c, "W")
+			) {
+			  ownBlockEdgeMoves.push(m);
+			} else {
+			  ownBlockOtherMoves.push(m);
+			}
+		  }
+
+		  if (ownBlockCornerMoves.length) {
+			choicePool = ownBlockCornerMoves;
+			break;
+		  }
+		  if (ownBlockEdgeMoves.length) {
+			choicePool = ownBlockEdgeMoves;
+			break;
+		  }
+		  if (ownBlockOtherMoves.length) {
+			choicePool = ownBlockOtherMoves;
+			break;
+		  }
+		}
+		
+		// ------------------------------------------------------
+		// RAIDER — hit-and-run predatory AI
+		// Priorities:
+		//   1) Damage strongest enemy (not weakest)
+		//   2) Break streets
+		//   3) Attack corners / disrupt diagonals
+		//   4) Attack high-value tiles (edges > interior)
+		//   5) Only take empty tiles if no enemy targets
+		// ------------------------------------------------------
+		case AI_STYLE.RAIDER: {
+
+		  // 1. Enemy target = strongest enemy gang
+		  const enemyScores = {};
+		  for (let p = 2; p <= NUM_PLAYERS; p++) {
+			enemyScores[p] = blockScore(p);
+		  }
+		  const strongestEnemyScore = Math.max(...Object.values(enemyScores));
+		  const strongestEnemies = Object.keys(enemyScores)
+			.filter(p => enemyScores[p] === strongestEnemyScore)
+			.map(Number);
+
+		  const enemyIsStrong = m => strongestEnemies.includes(board[m.r][m.c]);
+
+		  const strongEnemyMoves = enemyMoves.filter(enemyIsStrong);
+
+		  // 2. Corner attacks (valuable sabotage)
+		  const cornerEnemyMoves = strongEnemyMoves.filter(m => {
+			const local = getLocalCoords(m.r, m.c);
+			if (!local) return false;
+			const { lr, lc } = local;
+			return (
+			  (lr === 0 && lc === 0) ||
+			  (lr === 0 && lc === BLOCK_SIZE - 1) ||
+			  (lr === BLOCK_SIZE - 1 && lc === 0) ||
+			  (lr === BLOCK_SIZE - 1 && lc === BLOCK_SIZE - 1)
+			);
+		  });
+
+		  if (cornerEnemyMoves.length) {
+			choicePool = cornerEnemyMoves;
+			break;
+		  }
+
+		  // 3. Break streets belonging to the strongest enemy
+		  const streetBreakerMoves = strongEnemyMoves.filter(m => {
+			const b = getBlockIndex(m.r, m.c);
+			if (b === -1) return false;
+
+			const sides = ["N", "S", "E", "W"];
+			return sides.some(side =>
+			  controlsStreet(board[m.r][m.c], b, side)
+			);
+		  });
+
+		  if (streetBreakerMoves.length) {
+			choicePool = streetBreakerMoves;
+			break;
+		  }
+
+		  // 4. Any strong enemy move
+		  if (strongEnemyMoves.length) {
+			choicePool = strongEnemyMoves;
+			break;
+		  }
+
+		  // 5. If no strong enemy adjacent, attack any enemy
+		  if (enemyMoves.length) {
+			choicePool = enemyMoves;
+			break;
+		  }
+
+		  // 6. Only now take empty tiles
+		  if (emptyMoves.length) {
+			choicePool = emptyMoves;
+			break;
+		  }
+
+		  // 7. Last resort
+		  choicePool = moves;
+		  break;
+		}
+		
+	}
+		
+		
+
+
+
+		// Fallback in case everything is empty
+		if (!choicePool.length) choicePool = moves;
+
+		// Choose randomly among the filtered set
+		const move = choicePool[Math.floor(Math.random() * choicePool.length)];
+
+      applyMove(player, move.r, move.c);
+	  
+      thugsRemaining--;
+	  
+	  if (checkDominationVictory(player)) return;
+	  if (checkElimination()) return;
+
+      renderBoard();
+      renderStatus();
+      renderScores();
+
+      safeTimeout(step, 320);
+    }
+
+    safeTimeout(step, 350);
+  }
+
+  // --- Init & events ---
+
+  function makeBoard() {
+    board = [];
+    for (let r = 0; r < BOARD_SIZE; r++) {
+      const row = [];
+      for (let c = 0; c < BOARD_SIZE; c++) {
+        row.push(0);
+      }
+      board.push(row);
+    }
+  }
+
+gameOverNewGameBtn.addEventListener("click", () => {
+  gameOverModal.classList.remove("open");
+  openSettingsModal(); 
+});
+
+  boardEl.addEventListener("click", (e) => {
+    if (!isHumanTurn() || gameOver) return;
+    const target = e.target.closest(".cell");
+    if (!target) return;
+
+    const r = parseInt(target.dataset.row, 10);
+    const c = parseInt(target.dataset.col, 10);
+    if (isStreetCell(r, c)) return;
+
+    const key = `${r},${c}`;
+    if (!currentValidMoveSet.has(key)) return;
+    if (thugsRemaining <= 0) return;
+
+    const player = PLAYER_ORDER[currentPlayerIndex];
+    applyMove(player, r, c);
+    thugsRemaining--;
+	if (checkDominationVictory(player)) return;
+	if (checkElimination()) return;
+
+    const newMoves = getValidMoves(player);
+    setValidMoves(newMoves);
+
+    renderBoard();
+    renderStatus();
+    renderScores();
+
+    if (thugsRemaining <= 0 || newMoves.length === 0) {
+      safeTimeout(endHumanTurn, 250);
+    }
+  });
+
+  endTurnBtn.addEventListener("click", () => {
+    endHumanTurn();
+  });
+
+  // Legend overlay toggle
+  legendToggleBtn.addEventListener("click", () => {
+	// Close Scoreboard if open	
+    scoresOverlay.classList.remove("open")
+    legendOverlay.classList.toggle("open");
+  });
+
+	// Close if clicking anywhere outside the overlay
+	document.addEventListener("click", (e) => {
+	  if (!legendOverlay.contains(e.target) && e.target !== legendToggleBtn) {
+		legendOverlay.classList.remove("open");
+	  }
+	});
+
+  // Scoreboard collapse toggle
+	scoresToggleEl.addEventListener("click", () => {
+		// Close Gangs popup if open
+		legendOverlay.classList.remove("open");
+
+	 const open = scoresOverlay.classList.toggle("open");
+
+		if (open) {
+			scoresEl.classList.remove("collapsed"); // <--- FIX
+		}
+
+		scoresToggleEl.innerHTML = open
+			? `📊 Leaderboard ▾`
+			: `📊 Leaderboard ▸`;	
+	});
+
+
+  function makeSpiralOrder(n) {
+    const res = [];
+    let top = 0, bottom = n - 1, left = 0, right = n - 1;
+    while (top <= bottom && left <= right) {
+      for (let c = left; c <= right; c++) res.push({ br: top, bc: c });
+      for (let r = top + 1; r <= bottom; r++) res.push({ br: r, bc: right });
+      if (top < bottom && left < right) {
+        for (let c = right - 1; c >= left; c--) res.push({ br: bottom, bc: c });
+        for (let r = bottom - 1; r > top; r--) res.push({ br: r, bc: left });
+      }
+      top++; bottom--; left++; right--;
+    }
+    return res.map(pos => pos.br * CITY_BLOCKS_PER_SIDE + pos.bc);
+  }
+
+	function shuffle(array) {
+	  for (let i = array.length - 1; i > 0; i--) {
+		const j = rngInt(i + 1);
+		[array[i], array[j]] = [array[j], array[i]];
+	  }
+	  return array;
+	}
+
+
+  function initGame() {
+    // Set board grid size dynamically
+    boardEl.style.gridTemplateColumns = `repeat(${BOARD_SIZE}, 40px)`;
+    boardEl.style.gridTemplateRows = `repeat(${BOARD_SIZE}, 40px)`;
+
+    makeBoard();
+
+    // Determine home blocks for each player (spiral or random)
+    let order = makeSpiralOrder(CITY_BLOCKS_PER_SIDE);
+    shuffle(order);
+
+    HOME_BLOCK = {};
+    for (let p = 1; p <= NUM_PLAYERS; p++) {
+      HOME_BLOCK[p] = order[p - 1];
+    }
+
+    // Place starting centers
+    for (let p = 1; p <= NUM_PLAYERS; p++) {
+      const blockIndex = HOME_BLOCK[p];
+      const { row, col } = getBlockTopLeft(blockIndex);
+      board[row + 1][col + 1] = p;
+    }
+
+    currentPlayerIndex = 0;
+    consecutiveSkips = 0;
+    gameOver = false;
+    turnNumber = 0;
+    setValidMoves([]);
+
+    renderLegend();
+	scoresEl.classList.remove("collapsed");
+    scoresToggleEl.innerHTML = `<span>📊</span><strong>Scoreboard ▾</strong>`;
+
+    startTurn();
+  }
+
+	// ------------------------------
+	// SETTINGS MODAL LOGIC
+	// ------------------------------
+
+	const settingsOverlay = document.getElementById("settingsOverlay");
+	const blocksSlider = document.getElementById("blocksSlider");
+	const blocksValue = document.getElementById("blocksValue");
+	const blocksDetail = document.getElementById("blocksDetail");
+
+	const aiSlider = document.getElementById("aiSlider");
+	const aiValue = document.getElementById("aiValue");
+	const aiDetail = document.getElementById("aiDetail");
+
+	const randomStartsCheckbox = document.getElementById("randomStartsCheckbox");
+	const startGameBtn = document.getElementById("startGameBtn");
+	const cancelSettingsBtn = document.getElementById("cancelSettingsBtn");
+
+	// Quick setting buttons
+	document.getElementById("easyBtn").addEventListener("click", () => {
+	  blocksSlider.value = 2;
+	  updateSettingsUI();
+	  aiSlider.value = 1;
+	  updateSettingsUI();
+	});
+
+	document.getElementById("normalBtn").addEventListener("click", () => {
+	  blocksSlider.value = 3;
+	  updateSettingsUI();
+	  aiSlider.value = 4;
+	  updateSettingsUI();
+	});
+
+	document.getElementById("hardBtn").addEventListener("click", () => {
+	  blocksSlider.value = 5;
+	  updateSettingsUI();
+	  aiSlider.value = 20;
+	  updateSettingsUI();
+	});
+
+	document.getElementById("crazyBtn").addEventListener("click", () => {
+	  blocksSlider.value = 9;
+	  updateSettingsUI();
+	  aiSlider.value = 80;
+	  updateSettingsUI();
+	});
+
+	function openSettingsModal() {
+	  updateSettingsUI();
+	  settingsOverlay.classList.add("open");
+	}
+
+	function closeSettingsModal() {
+	  settingsOverlay.classList.remove("open");
+	}
+
+	function updateSettingsUI() {
+	  const blocks = Number(blocksSlider.value);
+	  const maxAI = blocks * blocks - 1;
+
+	  blocksValue.textContent = `${blocks} × ${blocks}`;
+	  blocksDetail.textContent = `${blocks * blocks} blocks total`;
+
+	  aiSlider.max = maxAI;
+	  if (Number(aiSlider.value) > maxAI) aiSlider.value = maxAI;
+
+	  aiValue.textContent = aiSlider.value;
+	  aiDetail.textContent = `${aiSlider.value} AI gangs`;
+	}
+
+	// Open modal from New Game button
+	newGameBtn.addEventListener("click", openSettingsModal);
+
+	// Cancel button
+	cancelSettingsBtn.addEventListener("click", closeSettingsModal);
+
+	// Slider live updates
+	blocksSlider.addEventListener("input", updateSettingsUI);
+	aiSlider.addEventListener("input", updateSettingsUI);
+
+	// Start game using modal settings
+	startGameBtn.addEventListener("click", () => {
+	  clearAllTimeouts();
+	  gameOver = false;
+  	  currentPlayerIndex = 0;
+	  consecutiveSkips = 0;
+	  turnNumber = 0;
+
+	  CITY_BLOCKS_PER_SIDE = Number(blocksSlider.value);
+	  NUM_AI = Number(aiSlider.value);
+		  
+	// Determine the seed
+	  let seed = seedInput.value.trim();
+	  if (seed === "") {
+		seed = Math.random().toString(36).slice(2, 10); // auto seed
+		seedInput.value = seed;
+	  }
+
+	  GAME_SEED = seed;
+	  seedDisplay.textContent = seed;
+
+	  // create RNG
+	  const numericSeed = hashStringToInt(seed);
+	  RNG = mulberry32(numericSeed);	  
+	   computeDynamicValues();
+	  closeSettingsModal();
+	  initGame();
+	});
+
+  </script>
+</body>
+</html>
