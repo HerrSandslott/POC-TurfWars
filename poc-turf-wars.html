@@ -587,7 +587,7 @@
         <hr style="border-color: rgba(255,255,255,0.1); margin: 8px 0;">
 		
 		<p><b>How to win</b><br>
-		Eiminate all opponents or control more than half the centers.
+		Eliminate all opponents or control more than half the centers.
 		</p>
 		
 		<p><b>How to move</b><br>
@@ -1489,13 +1489,9 @@ function showGameOverModal(title, textHTML) {
 		const isHuman = (player === 1);
 
 		gameOver = true;
-		showGameOverModal(titleText, `
-		  <b>Game Over — ${isHuman ? "You Win!" : winnerName + " Wins"}</b><br>
-		  ${winnerName} has achieved <b>Domination Victory</b> by controlling
-		  more than half of all block centers.<br><br>
-		  <b>Game ended on Round ${turnNumber}</b>
-		`);
-
+		showGameOverModal('<b>Game Over — '+(isHuman ? 'You Win!' : winnerName + ' Wins')+'</b>', `
+		  <b>Domination Victory</b> by controlling more than half of all block centers.<br><br>
+		  <b>Game ended on Round `+turnNumber+'</b>');
 		renderBoard();
 		renderScores();
 		return true;
