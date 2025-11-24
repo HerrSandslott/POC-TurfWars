@@ -1,5 +1,7 @@
 # 🏙️ **TURF WARS**
 
+<a href="https://herrsandslott.github.io/POC-TurfWars/poc-turf-wars.html">Play it here!</a>
+
 **A tile-based tactical territory-control game by Lars Nohrstedt — 2025**
 
 Turf Wars is a turn-based, deterministic strategy game played on a procedurally seeded grid of “city blocks.”
