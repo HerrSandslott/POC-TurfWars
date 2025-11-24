@@ -265,6 +265,9 @@ The personalities combine into unpredictable, fascinating mid-game dynamics.
 
 A core feature should be interesting enough to stand alone as a game.
 This is a vibe-coded proof-of-concept of the movement rules and their emergent behavior.
+Forcing myself to focus on the game rules rather than the code was an experience in itself.
+With that said I would not ship the code, but I am happy with the emergent behavior.
+
 
 
 
