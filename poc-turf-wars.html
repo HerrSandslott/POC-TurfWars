@@ -28,6 +28,30 @@
       box-sizing: border-box;
     }
 
+	.splash-screen {
+	  position: absolute;
+	  inset: 0;
+	  z-index: 10;
+	  display: flex;
+	  justify-content: center;
+	  align-items: center;
+	  background: #000;
+	  border-radius: 12px;
+	}
+
+	.splash-screen img {
+	  max-width: 90%;
+	  max-height: 90%;
+	  object-fit: contain;
+	  opacity: 0.92;
+	}
+
+	/* Hidden state */
+	.splash-screen.hidden {
+	  display: none;
+	}
+
+
     h1 {
       margin: 0 0 8px;
       font-size: 24px;
@@ -558,6 +582,10 @@
 
     <div class="layout">
       <div class="board-wrapper">
+		<div id="splashScreen" class="splash-screen">
+		  <img src="turf-wars.png" alt="Turf Wars">
+		</div>
+	  
         <div id="board" class="board"></div>
       </div>
 
@@ -2240,6 +2268,7 @@ gameOverNewGameBtn.addEventListener("click", () => {
     renderLegend();
 	scoresEl.classList.remove("collapsed");
     scoresToggleEl.innerHTML = `<span>📊</span><strong>Scoreboard ▾</strong>`;
+	document.getElementById("splashScreen").classList.add("hidden");
 
     startTurn();
   }
@@ -2291,6 +2320,7 @@ gameOverNewGameBtn.addEventListener("click", () => {
 	});
 
 	function openSettingsModal() {
+	  document.getElementById("splashScreen").classList.remove("hidden");
 	  updateSettingsUI();
 	  settingsOverlay.classList.add("open");
 	}
@@ -2325,8 +2355,9 @@ gameOverNewGameBtn.addEventListener("click", () => {
 
 	// Start game using modal settings
 	startGameBtn.addEventListener("click", () => {
+	  document.getElementById("splashScreen").classList.add("hidden");
 	  clearAllTimeouts();
-	  gameOver = false;
+ 	  gameOver = false;
   	  currentPlayerIndex = 0;
 	  consecutiveSkips = 0;
 	  turnNumber = 0;
