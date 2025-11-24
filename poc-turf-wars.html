@@ -1429,7 +1429,7 @@ function showGameOverModal(title, textHTML) {
     const player = PLAYER_ORDER[currentPlayerIndex];
 	turnInfoEl.innerHTML =
     `<span style="opacity:0.7; font-size:11px;">World Generation Seed: ${GAME_SEED}</span><br>
-	Turn: ${PLAYER_NAMES[player]} (${player === 1 ? "You" : "AI"}) — Round ${turnNumber}`;
+	Turn: ${PLAYER_NAMES[player]} — Round ${turnNumber}`;
 	 thugInfoEl.textContent = `Moves this turn: ${thugsRemaining}`;
 
     endTurnBtn.disabled = !isHumanTurn() || gameOver;
