@@ -562,6 +562,11 @@
       font-size: 10px;
       opacity: 0.7;
     }
+	
+	#endTurnBtn {
+	  display: none;
+	}
+	
   </style>
 </head>
 <body>
@@ -763,6 +768,8 @@ let GAME_SEED = "";
 
 // ---- Timeout Management ----
 let ACTIVE_TIMEOUTS = [];
+
+let gameRunning = false;
 
 function safeTimeout(fn, delay) {
   const id = setTimeout(() => {
@@ -2270,6 +2277,9 @@ gameOverNewGameBtn.addEventListener("click", () => {
     scoresToggleEl.innerHTML = `<span>📊</span><strong>Scoreboard ▾</strong>`;
 	document.getElementById("splashScreen").classList.add("hidden");
 
+	endTurnBtn.style.display = "inline-block";
+	gameRunning = true;
+
     startTurn();
   }
 
@@ -2345,7 +2355,11 @@ gameOverNewGameBtn.addEventListener("click", () => {
 	}
 
 	// Open modal from New Game button
-	newGameBtn.addEventListener("click", openSettingsModal);
+	newGameBtn.addEventListener("click", () => {
+	  gameRunning = false;
+	  endTurnBtn.style.display = "none";
+	  openSettingsModal();
+	});
 
 	// Cancel button
 	cancelSettingsBtn.addEventListener("click", closeSettingsModal);
@@ -2382,6 +2396,8 @@ gameOverNewGameBtn.addEventListener("click", () => {
 	   computeDynamicValues();
 	  closeSettingsModal();
 	  initGame();
+	  endTurnBtn.style.display = "inline-block";
+	  gameRunning = true;
 	});
 
   </script>
