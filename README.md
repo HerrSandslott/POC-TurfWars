@@ -1,7 +1,3 @@
-<p align="center">
-  <img src="assets/turf-wars.png" width="600" alt="Turf Wars">
-</p>
-
 # 🏙️ **TURF WARS**
 
 **A tile-based tactical territory-control game by Lars Nohrstedt — 2025**
